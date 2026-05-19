@@ -1,0 +1,24 @@
+---
+title: "Find A Gene Pt.1"
+author: "David Majeed (A17885958 : dmajeed@ucsd.edu)"
+format: pdf
+editor: visual
+---
+
+## 
+
+Q.1
+
+Name: Retinol Binding Protein 4
+
+Accession: NP_006735
+
+Species: Homo sapien
+
+Q.2
+
+TBLASTN
+
+Database: Expressed Sequence Tags (est)
+
+Organism: Nematodes

@@ -1,0 +1,150 @@
+---
+title: "Class 10"
+author: "David Majeed (PID:A17885958)"
+format: pdf
+editor: visual
+toc: TRUE
+---
+
+## Background
+
+The main repository of high-resolution data on biomolecules is called the Protein Data Bank (PDB)
+
+## PDB Stats
+
+What is in the PDB in terms of molecule type and strurcture determination method
+
+```{r}
+#read the file from the rcsb website and then format properly
+pdb<- read.csv("Data Export Summary.csv")
+x<-pdb$X.ray
+tmp<-sub(",","", x)
+sum(as.numeric(tmp))
+#Lets make this a function
+
+rm.comma<- function(x) {
+  tmp<-sub(",","", x)
+  sum(as.numeric(tmp))
+}
+
+rm.comma(pdb$EM)
+
+#we can also use a different import function 
+library(readr)
+read_csv("Data Export Summary.csv")
+
+#lets find the percetange found by x-ray
+
+n.tot <- rm.comma(pdb$Total)
+n.xray<- rm.comma(pdb$X.ray)
+n.em<- rm.comma(pdb$EM)
+
+(n.xray+n.em)/n.tot 
+
+#How many total proteins?
+pdb[1,9]
+#there are 202556314 sequences known for proteins
+217375/202556314
+
+```
+
+Q1. 93.87% of structures in the PDB are solved by X-Ray and Electron Microscopy
+
+Q2. There are 217,375 proteins; this is only 0.11% of known proteins. With most only known through one method
+
+Q3. There are 1,227 structures that are shown when searching for HIV-1 protease
+
+## Visualizing PDB Data With Mol-star
+
+Main stand alone website verision
+
+![The HIV-protease enzyme is a homodimer with two chains](1HSG.png)
+
+![Surface display showing the binding cleft site for the inhibitor (drug) molecule](1HSG-Surface.png)
+
+![Spacefill display of catalytic ASP25 amino acids and key binding site water molecules](1HSG-water.png)
+
+```{r}
+#install.packages("pak")
+library(bio3d)
+#pak::pkg_install(c("bioboot/3dview", "NGLViewR", "bioc::msa"))
+
+pdb<- read.pdb("1hsg")
+pdb
+
+attributes(pdb)
+head(pdb$atom)
+```
+
+There are lots of functions that can work with these `pdb` objects
+
+```{r}
+head(pdbseq(pdb))
+library(bio3dview)
+
+#view.pdb(pdb)
+#view.pdb(pdb, colorScheme = "sse", backgroundColor = "black" )
+```
+
+```{r}
+#Lets highlight the active site ASP, the two chains, and the ligands
+library(NGLVieweR)
+#active.site<- atom.select(pdb, resno=25)
+#view.pdb(pdb,
+#         cols = c("red", "blue"),
+#         highlight = active.site,
+#         highlight.style = "spacefill",
+#         backgroundColor = "grey") |>
+#setRock()
+
+```
+
+## Let's Predict The Flexibility of A Given Structure
+
+Let's do a Normal Mode Analysis (NMA) to predict the flexiblity of a pdb object
+
+```{r}
+adk<- read.pdb("6s36")
+#summary
+adk
+m<-nma(adk)
+#make a graph
+plot(m)
+#view.nma(m)
+#write out the results of for viewing in Mol-Star
+mktrj(m, file="nma.pdb")
+```
+
+## Comparative Analysis of The ADK Family
+
+Our first step is finding the sequence with the "1ake_A" id
+
+```{r}
+library(NGLVieweR)
+library(bio3dview)
+
+#id<-"1ake_A"
+#aa<- get.seq(id)
+#blast<-blast.pdb(aa)
+#hits<-plot(blast)
+#hits$pdb.id
+#files <- get.pdb(hits$pdb.id, path="pdbs", split=TRUE, gzip=TRUE)
+
+#Align and superpose all these ADK files
+#pdbs <- pdbaln(files, fit = TRUE, exefile="msa")
+#pdbs
+#view.pdbs(pdbs)
+
+#Some code turned into text as R was having issues rendering it as a pdf
+```
+
+PCA of all this data cordinates
+
+```{r}
+#pc<-pca(pdbs)
+#plot(pc, 1:2)
+
+#interactive view
+#view.pca(pc)
+#mktrj(pc, file="pca.pdb")
+```

@@ -1,0 +1,50 @@
+---
+title: "Class 12"
+author: "David Majeed (A17885958)"
+format: pdf
+editor: visual
+---
+
+```{r}
+#Section 1. Protion of G/G in Population 
+mxl<-read.csv("373531-SampleGenotypes-Homo_sapiens_Variation_Sample_rs8067378.csv")
+head(mxl)
+table(mxl$Genotype..forward.strand.)/nrow(mxl)
+
+```
+
+Section 4
+
+Q.13 +14
+
+```{r}
+expr<-read.table("rs8067378_ENSG00000172057.6.txt")
+#Lets import our data
+head(expr)
+nrow(expr)
+table(expr$geno)
+#Lets get some basic understanding of our data by looking at the header, number of rows, and the table of genotypes
+df<- data.frame(expr)
+
+#To further examine, lets get our data into a data frame
+
+bp_out<-boxplot(df$exp ~ df$geno, data=df)
+
+#Lets use the boxplot function on our data frame to get some stats like the median. It will out put it on the third row
+
+bp_out$stats
+
+#Q.13 There are 108 A/A,233 A/G, and 121 G/G. The medians, respectively are, 31.25, 25.06, and 20.07
+
+
+library(ggplot2)
+#Load up ggplot
+ggplot(expr)+ 
+#ggplot allows us to use the plot function with (expr) highligting the use of the expr data  
+  aes(geno, exp, fill=geno)+
+  #aes helps us deterimine the x and y axis as the genotype and expression levels. fill=geno allows us to color cordinate them
+  geom_boxplot(notch = T)
+#geom_boxplot allows us to specify that we are making a box plot graph and notch gives it the skinny effect in the middle
+
+#Q.14 From the boxplot we see that homozygous A has higher expresion levels in comparison to homozygous G. So we can infer that the SNP does effect the expression of ORMDL3
+```

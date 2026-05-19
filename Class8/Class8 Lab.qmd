@@ -1,0 +1,234 @@
+---
+title: "Class8"
+author: "David Majeed (A17885958)"
+format: pdf
+toc: true
+editor: visual
+---
+
+## Intro
+
+Our goal is to analysis data coming from breast cancer research using the techniques we have learnt in other classes.
+
+## Data Import
+
+The data comes from fine needle aspiration
+
+```{r}
+
+library(readr)
+
+
+fna.data <- read_csv("Class8/WisconsinCancer.csv")
+#read.csv allows us to import our data set
+
+wisc.df<- read.csv("Class8/WisconsinCancer.csv", row.names=1)
+#Shift the row names by 1 to line up our data properly
+
+head(wisc.df,3)
+#Not to show up all the data
+
+#lets remove the diagonsis column
+wisc.data<- wisc.df[,-1]
+#make it's own
+diagonsis<- wisc.df[,1]
+```
+
+## Exploring the Data
+
+Q1. There are 569 observation
+
+```{r}
+nrow(wisc.data)
+```
+
+Q2. There are 212 malignant diagnoses
+
+```{r}
+#my attempt
+sum(diagonsis=='M')
+#Prof's way
+table(diagonsis)
+```
+
+Q3. There are 10 variables in the data with the suffix of \_mean
+
+```{r}
+length(grep("_mean", colnames(wisc.data), value=F))
+#length counts
+#grep searches for the suffix
+```
+
+## PCA
+
+Q4. The orginal variance is 0.4427 from PC1
+
+Q5. PC3 is required to desrcibe at least 70% of the original variance
+
+Q6. PC7 is needed for at least 90% of the original variance data
+
+```{r}
+#we need to scale our data
+wisc.pr<-prcomp(wisc.data, scale=T)
+summary(wisc.pr)
+```
+
+Q7. The thing that stands out is the lack of readability, all the labels and data points are stacked one another thus I can not understand it at all
+
+```{r}
+biplot(wisc.pr)
+
+```
+
+```{r}
+#lets make a PC score plot
+library(ggplot2)
+ggplot(wisc.pr$x)+ 
+  aes(PC1, PC2, col=diagonsis)+
+  geom_point()
+```
+
+Q8. I notice that it has shifted everything down a bit. It still looks pretty similar to the previous plot but with more mixing of the two types together.
+
+```{r}
+ggplot(wisc.pr$x)+ 
+  aes(PC1, PC3, col=diagonsis)+
+  geom_point()
+```
+
+## Variance
+
+```{r}
+pr.var<- wisc.pr$sdev^2
+head(pr.var)
+
+# Variance explained by each principal component: pve
+pve <- pr.var/sum(pr.var)
+
+# Plot variance explained for each principal component
+plot(c(1,pve), xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "o")
+
+# Alternative scree plot of the same data, note data driven y-axis
+barplot(pve, ylab = "Percent of Variance Explained",
+     names.arg=paste0("PC",1:length(pve)), las=2, axes = FALSE)
+axis(2, at=pve, labels=round(pve,2)*100 )
+```
+
+**Communicating PCA results**
+
+```{r}
+wisc.pr$rotation["concave.points_mean",1]
+```
+
+Q.9 The loading value of the first principal component is -0.2608538. There are no other features that contribute more than this one.
+
+## Hierarchical Clustering
+
+```{r}
+# Scale the wisc.data data using the "scale()" function
+data.scaled <- scale(wisc.data)
+
+#Find the distance
+data.dist <- dist(data.scaled)
+
+#Make the hclust
+wisc.hclust <- hclust(data.dist,method="complete")
+
+#make the plot
+
+
+plot(wisc.hclust)
+abline(h = 19, col="red", lty=2)
+
+#Lets see what height can cut the tree into 4
+wisc.hclust.clusters <- cutree(wisc.hclust, h = 24)
+
+table(wisc.hclust.clusters)
+
+table(wisc.hclust.clusters, fna.data$diagnosis)
+
+
+```
+
+Q.10 The height at which the clustering model has 4 branches is at 19
+
+Q.11 The height for 6 clusters is 16.9 and for 2 clusters the height is 24. Either way the data in between is not the best as it doesn't help us with narrowing down the data either being to little or too much
+
+```{r}
+wisc.hclust <- hclust(data.dist,method="ward.D2")
+#changing the method
+
+wisc.hclust
+
+plot(wisc.hclust)
+
+```
+
+Q.12 The "ward.D2" is the better method to display the data as it gives a seperation of the data unlike other methods, this allows us to see the different branches easier. With methods like "complete", there was a need for more guess work to figure out where it was optimal to cut.
+
+## Combining methods
+
+```{r}
+d<-dist(wisc.pr$x[,1:4])
+wisc.pr.hclust<-hclust(d, method="ward.D2")
+plot(wisc.pr.hclust)
+abline(h=70, col="red")
+
+grps<-cutree(wisc.pr.hclust, h=70)
+table(grps)
+
+ggplot(wisc.pr$x) +
+  aes(PC1, PC2) +
+  geom_point(col=grps)
+
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=2)
+
+table(wisc.pr.hclust.clusters, fna.data$diagnosis)
+
+table(wisc.hclust.clusters,diagonsis)
+```
+
+Q.13 It seperates out the clusters pretty well, with many true positives and true negatives, with relatively few false negatives or false postitives.
+
+Q.14 The data is not as clean as the previous one, with more overlap and splitting of the data into four groups rather than the proper seperation of the groups into 2 benign and malignant
+
+How does this clustering pattern correspond to expert diagnosis
+
+```{r}
+table(diagonsis, grps)
+```
+
+## Sensitivity/ Specificity
+
+```{r}
+#Sensitivity: TP/(TP+FN)
+188/(188+24)
+
+#Specificity: TN/(TN+FP)
+329/(329+28)
+```
+
+Q.15 The PCA based hierachical was the best with a sensitivity of 88.7% and a specificty of 92.2%
+
+## Prediction
+
+```{r}
+#url <- "new_samples.csv"
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+npc
+
+plot(wisc.pr$x[,1:2], col=grps)
+points(npc[,1], npc[,2], col="blue", pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col="white")
+```
+
+Q.16 We should priotize patient group #2, just like the our previous data, we saw that benign patients are closer to one another and have less spread in comparison to malignant which are more spread out
+
+```{r}
+sessionInfo()
+
+```

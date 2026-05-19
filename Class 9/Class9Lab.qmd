@@ -1,0 +1,230 @@
+---
+title: "Class 9"
+author: "David Majeed (A17885958"
+format: pdf
+toc: TRUE
+editor: visual
+---
+
+## Background
+
+We are going to learn more about principal component analysis (PCA) using a fun data set.
+
+## Data Import
+
+```{r}
+candy_file <- "candy-data.csv"
+
+candy = read.csv("candy-data.txt", row.names=1)
+head(candy)
+#Imports our data
+```
+
+Q1. There are 85 different types of candy in the dataset
+
+```{r}
+#each row is a type of candy
+nrow(candy)
+
+```
+
+Q2. There are 38 fruity candies in the data set
+
+```{r}
+#Counting the sum of fruity candy column should give us the amount
+sum(candy$fruity)
+```
+
+## What is the favorite candy
+
+Q3. My favorite candy is Swedish Fish and the winpercent is 54.86111
+
+Q4. The winpercent of Kit Kat is 76.7686
+
+Q5. The winpercent of Tootsie Roll Snack Bars is 49.6535
+
+```{r}
+candy["Swedish Fish", ]$winpercent
+candy["Kit Kat", ]$winpercent
+candy["Tootsie Roll Snack Bars", ]$winpercent
+#Find the percent for each of the candy by looking at the candy data then for the row in the "" and then by the column winpercent
+```
+
+Q6. The winpercent column looks like its on a different scale as every other variable is in between 0-1 while winpercent has numbers that are greater than 10
+
+Q7. A zero most likely represents 'no' or that there is not any chocolate in the candy while a 1 represents a 'yes' where there is chocolate in the candy
+
+```{r}
+#install.packages("skimr")
+library("skimr")
+#lets skim the whole data det
+skim(candy)
+#lets look at just one varriable
+skim(candy$chocolate)
+```
+
+## Exploratory Analysis
+
+Lets look at the histograms
+
+Q8.
+
+```{r}
+hist(candy$winpercent)
+library(ggplot2)
+ggplot(candy)+ 
+  aes(candy$winpercent)+
+  geom_histogram()
+#Makes a plot
+summary(candy$winpercent)
+```
+
+Q.9 The distribution isn't symmetrical, it is slightly skewed to the left
+
+Q.10 The center of distribution is slightly above 50% at 50.31676 with the mean, but looking at the median which would be better for skewed data like this, it is at 47.83 or bellow %50
+
+Q.11 The average chocolate candy is higher ranked at 60.92153 than fruity candy at 44.11974
+
+```{r}
+mean(candy$winpercent[as.logical(candy$chocolate)])
+
+mean(candy$winpercent[as.logical(candy$fruity)])
+#we can use as.logical() since these are T/F values
+```
+
+Q12. The p-value is 2.871e-08 which is much smaller than 0.05 indicating that it is significant
+
+```{r}
+t.test((candy$winpercent[as.logical(candy$chocolate)]),candy$winpercent[as.logical(candy$fruity)])
+#uses a t-test function
+```
+
+## Candy Rankings
+
+Q.13 The least favorite candies are Nik L Nip, Boston Baked Beans, Chiclets, Super Bubble, and Jawbusters
+
+```{r}
+head(candy[order(candy$winpercent),], 5)
+#uses the head function to find the candies, the (,5) selects 5
+```
+
+Q14. The top 5 are Reese's Peanut Butter cup, Reese's Miniatures, Twix, Kit Kat, and Snickers
+
+```{r}
+
+head(candy[order(candy$winpercent, decreasing = T),], 5)
+#For the least popular
+```
+
+Q15.
+
+```{r}
+library(ggplot2)
+#Makes a plot
+ggplot(candy) + 
+  aes(winpercent, rownames(candy)) + geom_col()
+```
+
+Q16.
+
+```{r}
+library(ggplot2)
+
+ggplot(candy) + 
+  aes(winpercent, reorder(rownames(candy), winpercent)) + geom_col()
+```
+
+## Adding Color
+
+```{r}
+#set all colors
+my_cols=rep("black", nrow(candy))
+#chocolate 
+my_cols[as.logical(candy$chocolate)] = "chocolate"
+#bars
+my_cols[as.logical(candy$bar)] = "blue"
+#fruit
+my_cols[as.logical(candy$fruity)] = "red"
+#Adds colors to each type of candy for the following plot
+ggplot(candy) + 
+  aes(winpercent, reorder(rownames(candy), winpercent)) + geom_col(fill=my_cols) +
+  ylab("Candy Type")
+```
+
+Q17. The worst ranked chocolate is Sixlets
+
+Q18. The best fruity candy is Starburst
+
+## Pricepercent
+
+```{r}
+#install.packages("ggrepel")
+library(ggrepel)
+
+# How about a plot of win vs price
+ggplot(candy) +
+  aes(candy$winpercent, candy$pricepercent, label=rownames(candy)) +
+  geom_point(col=my_cols) + 
+  geom_text_repel(col=my_cols, size=3.3, max.overlaps = 5)
+```
+
+Q19. It would be Twix
+
+Q20. The most expensive candies are Nik L Nip, Nestle Smarties, Ring pop, Hershey's Krackel, Hershey's Milk Chocolate. With Nik L Nip being the least popular
+
+```{r}
+ord <- order(candy$pricepercent, decreasing = TRUE)
+head( candy[ord,c(11,12)], n=5 )
+```
+
+Q21.
+
+```{r}
+ggplot(candy) + 
+  aes(pricepercent, reorder(rownames(candy), pricepercent)) + geom_point() +
+  geom_segment(aes(yend = reorder(rownames(candy), pricepercent), xend = 0), col="gray40")+
+  ylab("Candy Type")
+```
+
+## Correlation Structure
+
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+cij <- cor(candy)
+#finds the correlation between each pair of variables 
+corrplot(cij)
+```
+
+Q22. The strongest anti-correlation is fruity and chocolate
+
+Q23.
+
+Since chocolate and fruit are so anti-correlated, I predict that they will have the largest contribution to PC1
+
+## PCA
+
+```{r}
+pca<- prcomp(candy, scale=T)
+summary(pca)
+#makes pca of the data, using the scale= T to ensure that the size of winpercent doesn't overwhlem the PCA
+```
+
+```{r}
+ggplot(pca$x)+
+  aes(PC1,PC2, label = row.names(pca$x))+ geom_point(col=my_cols)+
+  geom_text_repel(col=my_cols)
+#graphs the PCA
+```
+
+Second major results figure from PCA
+
+```{r}
+ggplot(pca$rotation) +
+  aes(PC1, reorder(row.names(pca$rotation), PC1)) +
+  geom_col()
+```
+
+Q24. The variables of fruity followed by pluribus and hard were strongly picked up by PC1 in the postive direction. This makes sense to me, especially as we saw in the correlation plot how fruity had the strongest minus correlation with chocolate and a lot of negative correlation with other variables
+
+Q25. I think I would make a chocolate and bar as that is clearly the winner. Firstly, looking at the graph of candy type against winpercent, we see the top of the list occupied by chocolates and bars as evident of the brown and blue near the top of chart. Next, in our correlation chart, we see the highest levels of correlation between winpercent is with chocolate, with bar also being blue but at a lighter shade. Finally, looking at PCA, such as loading, we see chocolate, bar, and winpercent close to one another indicating their association. With all this data in mind, chocolate and bar is a winning candy.

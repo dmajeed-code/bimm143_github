@@ -1,0 +1,144 @@
+---
+title: "Class8"
+author: "David Majeed (A17885958)"
+format: pdf
+toc: true
+editor: visual
+---
+
+## Intro
+
+Our goal is to analysis data coming from breast cancer research using the techniques we have learnt in other classes.
+
+## Data Import
+
+The data comes from fine needle aspiration
+
+```{r}
+
+library(readr)
+
+
+fna.data <- read_csv("Class8/WisconsinCancer.csv")
+#read.csv allows us to import our data set
+
+wisc.df<- read.csv("Class8/WisconsinCancer.csv", row.names=1)
+#Shift the row names by 1 to line up our data properly
+
+head(wisc.df,3)
+#Not to show up all the data
+
+#lets remove the diagonsis column
+wisc.data<- wisc.df[,-1]
+#make it's own
+diagonsis<- wisc.df[,1]
+```
+
+## Exploring the Data
+
+Q1. There are 569 observation
+
+```{r}
+nrow(wisc.data)
+```
+
+Q2. There are 212 malignant diagnoses
+
+```{r}
+#my attempt
+sum(diagonsis=='M')
+#Prof's way
+table(diagonsis)
+```
+
+Q3. There are 10 variables in the data with the suffix of \_mean
+
+```{r}
+length(grep("_mean", colnames(wisc.data), value=F))
+#length counts
+#grep searches for the suffix
+```
+
+## PCA
+
+Q4. The orginal variance is 0.4427 from PC1
+
+Q5. PC3 is required to desrcibe at least 70% of the original variance
+
+Q6. PC7 is needed for at least 90% of the original variance data
+
+```{r}
+#we need to scale our data
+wisc.pr<-prcomp(wisc.data, scale=T)
+summary(wisc.pr)
+```
+
+Q7. The thing that stands out is the lack of readability, all the labels and data points are stacked one another thus I can not understand it at all
+
+```{r}
+biplot(wisc.pr)
+
+```
+
+```{r}
+#lets make a PC score plot
+library(ggplot2)
+ggplot(wisc.pr$x)+ 
+  aes(PC1, PC2, col=diagonsis)+
+  geom_point()
+```
+
+Q8. I notice that it has shifted everything down a bit. It still looks pretty similar to the previous plot but with more mixing of the two types together.
+
+```{r}
+ggplot(wisc.pr$x)+ 
+  aes(PC1, PC3, col=diagonsis)+
+  geom_point()
+```
+
+## Variance
+
+```{r}
+pr.var<- wisc.pr$sdev^2
+head(pr.var)
+```
+
+\\\\\\\\
+
+\\\\\\
+
+\\\\\\
+
+\\\\\\
+
+\\\\\\
+
+\\\\\\
+
+## Hierarchical Clustering
+
+\\\\\\
+
+\\\\\\\\
+
+\\\\\\\\
+
+\\\\\\\\
+
+## Combining methods
+
+```{r}
+d<-dist(wisc.pr$x[,1:4])
+wisc.pr.hclust<-hclust(d, method="ward.D2")
+plot(wisc.pr.hclust)
+abline(h=70, col="red")
+
+grps<-cutree(wisc.pr.hclust, h=70)
+table(grps)
+```
+
+How does this clustering pattern correspond to expert diagnosis
+
+```{r}
+table(diagonsis, grps)
+```

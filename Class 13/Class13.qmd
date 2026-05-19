@@ -1,0 +1,273 @@
+---
+title: "Class 13"
+author: "David Majeed(A17885958)"
+format: pdf
+editor: visual
+toc: TRUE
+---
+
+## Setup
+
+```{r}
+#install.packages("BiocManager")
+#BiocManager::install()
+# For this class we will need DESeq2:
+#BiocManager::install("DESeq2")
+library(BiocManager)
+library(DESeq2)
+```
+
+## Data Import
+
+```{r}
+
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <-  read.csv("airway_metadata.csv")
+head(counts)
+head(metadata)
+
+View(counts)
+#Q1 There are 38694 genes in the data
+
+table(metadata$dex)
+#Q2 There are 4 controls
+```
+
+## Toy Differential Gene Expression
+
+```{r}
+control <- metadata[metadata[,"dex"]=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowSums( control.counts )/4 
+head(control.mean)
+
+#find the control column
+control.inds<-metadata$dex =="control"
+#extract out the values in counts
+control.counts<- counts[,control.inds]
+#find the average
+control.mean<- rowMeans(control.counts)
+
+
+#Q.3 The function rowSums() can help the code
+#same thing for treated
+
+treated.inds<- metadata$dex=="treated"
+treated.counts<- counts[,treated.inds]
+treated.mean<- rowMeans(treated.counts)
+#Q.4 The code above does the same with treated
+#lets stores these together
+library(dplyr)
+meancounts<-data.frame(control.mean,treated.mean)
+#lets plot it 
+#Q5.a
+plot(control.mean, treated.mean)
+plot(meancounts)
+#Q5.b You would use geom_point() function if you used ggplot
+head(meancounts)
+```
+
+Our count data is highly skewed as seen in the plot, thus we need to transform it with a log
+
+```{r}
+#Q.6 You would use log="xy" for the argument to transform them to the log scale
+plot(meancounts, log="xy")
+
+#Lets use log^2 to transform this data because it makes the interpertation easier, its the log2 fold change
+
+meancounts$log2fc<- log2(meancounts$treated.mean/meancounts$control.mean)
+plot(meancounts$log2fc)
+
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+
+#Q.7 It retrieves the positions of all the true values. 
+#We use the unique function to prevent double counting 
+#and ensuring our data stays clean. 
+
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+sum(up.ind)
+#Q.8 We have 250 up regulated genes above 2 fc
+sum(down.ind)
+#Q.9 We have 367 down regluated genes above 2 fc
+#Q.10 We need to still be a bit skeptical and need to preform a DESeq analysis to really enusre that our results have p-values that are significant
+```
+
+## DESeq Analysis
+
+Lets find significance
+
+```{r, message=FALSE}
+
+library(DESeq2)
+```
+
+2 inputs needed for DESeq: countData and colData
+
+```{r, warning=FALSE}
+dds<- DESeqDataSetFromMatrix(countData = counts,
+                             colData = metadata,
+                             design = ~dex)
+
+```
+
+Now we can run the DESeq analysis pipeline using dds object
+
+```{r}
+dds<- DESeq(dds)
+res<- results(dds)
+head(res)
+```
+
+## Volcano Plot
+
+Puts together the log fold change and the pvalue into one plot and visualization
+
+```{r}
+library(ggplot2)
+ggplot(res)+
+  aes(log2FoldChange, (padj)) +
+  geom_point(alpha=0.3)
+
+#Lets log it
+ggplot(res)+
+  aes(log2FoldChange, log(padj)) +
+  geom_point(alpha=0.3)
+  
+
+#lets flip it
+ggplot(res)+
+  aes(log2FoldChange, -log(padj)) +
+  geom_point(alpha=0.3)
+
+#lets add some thresholds
+ggplot(res)+
+  aes(log2FoldChange, -log(padj)) +
+  geom_point(alpha=0.3)+
+  geom_hline(yintercept=-log(0.05), col="darkgray", lty=2)+
+  geom_vline(xintercept=2, col="darkgray", lty=2)+
+    geom_vline(xintercept=-2, col="darkgray", lty=2)
+
+#lets add some color
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+
+ggplot(res)+
+  aes(log2FoldChange, -log(padj), col=mycols) +
+  geom_point(alpha=0.3)+
+  geom_hline(yintercept=-log(0.05), col="darkgray", lty=2)+
+  geom_vline(xintercept=2, col="darkgray", lty=2)+
+    geom_vline(xintercept=-2, col="darkgray", lty=2)
+```
+
+```{r}
+write.csv(res, file="myresults.csv")
+```
+
+```{r}
+library(DESeq2)
+citation("DESeq2")
+
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex)
+dds
+```
+
+## PCA
+
+```{r}
+vsd <- vst(dds, blind = FALSE)
+plotPCA(vsd, intgroup = c("dex"))
+pcaData <- plotPCA(vsd, intgroup=c("dex"), returnData=TRUE)
+head(pcaData)
+# Calculate percent variance per PC for the plot axis labels
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData) +
+  aes(x = PC1, y = PC2, color = dex) +
+  geom_point(size =3) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  theme_bw()
+```
+
+## DSEQ
+
+```{r}
+
+#Use the DESeq function 
+dds <- DESeq(dds)
+res <- results(dds)
+res
+summary(res)
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+
+
+
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+columns(org.Hs.eg.db)
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res) , 
+                     column="ENTREZID",        
+                     keytype = "ENSEMBL",          
+                     multiVals="first")
+res$uniprot<- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), 
+                     column="UNIPROT",        
+                     keytype="ENSEMBL",          
+                     multiVals="first")
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), 
+                     column="GENENAME",        
+                     keytype="ENSEMBL",          
+                     multiVals="first")
+#Q.11 Above code
+head(res)
+ord <- order( res$padj )
+#View
+head(res[ord,])
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+## **Pathway analysis with R and Bioconductor**
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+
+# Examine the first 2 pathways in this kegg set for humans
+head(kegg.sets.hs, 2)
+
+foldchanges <-res$log2FoldChange
+names(foldchanges) <- res$entrez
+head(foldchanges)
+# Get the results using the gage function to do our pathway analysis
+keggres = gage(foldchanges, gsets=kegg.sets.hs)#Lets see what in here
+attributes(keggres)
+head(keggres$less, 3)
+
+
+pathview(gene.data=foldchanges, pathway.id="hsa05310")
+
+write.csv(res,file="myresults_annotated")
+```
+
+![](hsa05310.pathview.png)
