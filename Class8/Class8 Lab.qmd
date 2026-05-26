@@ -19,10 +19,10 @@ The data comes from fine needle aspiration
 library(readr)
 
 
-fna.data <- read_csv("Class8/WisconsinCancer.csv")
+fna.data <- read_csv("WisconsinCancer.csv")
 #read.csv allows us to import our data set
 
-wisc.df<- read.csv("Class8/WisconsinCancer.csv", row.names=1)
+wisc.df<- read.csv("WisconsinCancer.csv", row.names=1)
 #Shift the row names by 1 to line up our data properly
 
 head(wisc.df,3)
